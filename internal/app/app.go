@@ -3,9 +3,10 @@ package app
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"log"
 	"math"
-	"notifier/internal/service"
+	"notifier/internal/adapters"
+	"notifier/internal/usecases"
+	"os"
 	"time"
 )
 
@@ -17,30 +18,53 @@ const (
 
 var (
 	prevValue           float64
-	treatments          map[uuid.UUID]bool
 	timer               *time.Timer
+	treatments          map[uuid.UUID]bool
 	treatmentTimers     map[uuid.UUID]*time.Timer
 	nextTreatmentTimers map[uuid.UUID]*time.Timer
 	highText            = "Внимание! Сахар выше 10! Текущее значение %.1f ммоль/л"
 	lowText             = "Внимание! Сахар ниже 4.5! Текущее значение %.1f ммоль/л"
 	bolusText           = "На болюс %.1f введенный в %s значение сахара через 2 часа (%s) %.1f ммоль/л"
 	noDataText          = "Нет новых данных"
+	interval            = 5 * time.Minute
+	//tickerInterval      = 1 * time.Minute
+	tickerInterval = 10 * time.Second
 )
 
 func Run() {
-	response, err := service.FetchData()
-	if err != nil {
-		log.Fatal(err)
+	fetcher := adapters.NewHttpFetcher()
+	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+	chatID := os.Getenv("TELEGRAM_CHAT_ID")
+	notifier := adapters.NewNotifier(chatID, botToken)
+
+	checker := usecases.NewChecker(fetcher, notifier, interval)
+
+	ticker := time.NewTicker(tickerInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			err := checker.CheckAndNotify()
+			if err != nil {
+				fmt.Println("Error:", err)
+			}
+		}
 	}
 
-	//treatment, err := service.FetchTreatments()
+	//response, err := adapters.FetchData()
 	//if err != nil {
 	//	log.Fatal(err)
 	//}
 
-	sgv := response.SGV
-	value := calculateValue(sgv)
-	fmt.Println(value)
+	//treatment, err := adapters.FetchTreatments()
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+
+	//sgv := response.SGV
+	//value := calculateValue(sgv)
+	//fmt.Println(value)
 
 	//if isValidDate(treatment.CreatedAt) && treatment.Insulin != 0 {
 	//	treatments[treatment.UID] = true
@@ -82,16 +106,16 @@ func Run() {
 	//	})
 	//}
 
-	if isValidDate(response.DateString) {
-		sendMessageImmediately(noDataText)
-		return
-	}
-
-	message := getMessage(value)
-	if message != "" {
-		sendMessageWithDelay(message, value)
-	}
-	prevValue = value
+	//if isValidDate(response.DateString) {
+	//	sendMessageImmediately(noDataText)
+	//	return
+	//}
+	//
+	//message := getMessage(value)
+	//if message != "" {
+	//	sendMessageWithDelay(message, value)
+	//}
+	//prevValue = value
 }
 
 func isValidDate(date time.Time) bool {
@@ -168,7 +192,7 @@ func sendMessageImmediately(message string) {
 	fmt.Println("sending message to telegram:", message)
 	//botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	//chatID := os.Getenv("TELEGRAM_CHAT_ID")
-	//err := service.SendTelegramMessage(
+	//err := adapters.SendTelegramMessage(
 	//	botToken,
 	//	chatID,
 	//	message,

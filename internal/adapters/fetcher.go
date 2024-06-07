@@ -1,14 +1,20 @@
-package service
+package adapters
 
 import (
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
-	"notifier/pkg/models"
+	"notifier/internal/entities"
 )
 
-func FetchData() (*models.Response, error) {
+type HttpFetcher struct{}
+
+func NewHttpFetcher() *HttpFetcher {
+	return &HttpFetcher{}
+}
+
+func (hf *HttpFetcher) FetchEntry() (*entities.SGVResponse, error) {
 	requestURL := "https://j82719866.nightscout-jino.ru/api/v1/entries.json?count=1"
 	res, err := http.Get(requestURL)
 	if err != nil {
@@ -25,7 +31,7 @@ func FetchData() (*models.Response, error) {
 		return nil, err
 	}
 
-	var response []models.Response
+	var response []entities.SGVResponse
 	if err = json.Unmarshal(body, &response); err != nil {
 		return nil, err
 	}
@@ -33,7 +39,7 @@ func FetchData() (*models.Response, error) {
 	return &response[0], nil
 }
 
-func FetchTreatments() (*models.TreatmentResponse, error) {
+func (hf *HttpFetcher) FetchTreatments() (*entities.TreatmentResponse, error) {
 	requestURL := "https://j82719866.nightscout-jino.ru/api/v1/treatments?count=1"
 	res, err := http.Get(requestURL)
 	if err != nil {
@@ -50,7 +56,7 @@ func FetchTreatments() (*models.TreatmentResponse, error) {
 		return nil, err
 	}
 
-	var response []models.TreatmentResponse
+	var response []entities.TreatmentResponse
 	if err = json.Unmarshal(body, &response); err != nil {
 		return nil, err
 	}
