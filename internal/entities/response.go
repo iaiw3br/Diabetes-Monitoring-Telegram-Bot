@@ -1,7 +1,6 @@
 package entities
 
 import (
-	"github.com/google/uuid"
 	"time"
 )
 
@@ -24,22 +23,16 @@ type SGVResponse struct {
 }
 
 type TreatmentResponse struct {
-	Timestamp int `json:"timestamp"`
-	// The type of treatment event
-	EventType string `json:"eventType"`
-	// Who entered the treatment.
-	EnteredBy string    `json:"enteredBy"`
-	UID       uuid.UUID `json:"uuid"`
-	// Amount of carbs consumed in grams
-	Carbs             int    `json:"carbs"`
-	InsulinInjections string `json:"insulinInjections"`
-	// The date of the event, might be set retroactively
-	CreatedAt time.Time `json:"created_at"`
-	SysTime   time.Time `json:"sysTime"`
-	// Internally assigned id
-	ID        string `json:"_id"`
-	UtcOffset int    `json:"utcOffset"`
-	Mills     int    `json:"mills"`
-	// Amount of insulin, if any.
-	Insulin float64 `json:"insulin"`
+	ID                string    `json:"_id"`
+	Timestamp         int       `json:"timestamp"`
+	EventType         string    `json:"eventType"`
+	EnteredBy         string    `json:"enteredBy"`
+	UID               string    `json:"uuid"`
+	Insulin           float64   `json:"insulin"`
+	InsulinInjections string    `json:"insulinInjections"`
+	CreatedAt         time.Time `json:"created_at"`
+	SysTime           string    `json:"sysTime"`
+	UtcOffset         int       `json:"utcOffset"`
+	Mills             int64     `json:"mills"`
+	Carbs             *int      `json:"carbs"`
 }

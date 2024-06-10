@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"math"
 	"notifier/internal/entities"
 	"time"
@@ -15,13 +14,13 @@ const (
 	highText         = "Внимание! Сахар выше 10! Текущее значение %.1f ммоль/л"
 	lowText          = "Внимание! Сахар ниже 4.5! Текущее значение %.1f ммоль/л"
 	noDataText       = "Нет новых данных"
-	bolusText        = "На болюс %.1f введенный в %s значение сахара через 2 часа (%s) %.1f ммоль/л"
+	bolusText        = "На болюс %.1f введенный в %s значение сахара через %s часа (%s) %.1f ммоль/л"
 )
 
 var (
-	treatments          map[uuid.UUID]bool
-	treatmentTimers     map[uuid.UUID]*time.Timer
-	nextTreatmentTimers map[uuid.UUID]*time.Timer
+	treatments          map[string]bool
+	treatmentTimers     map[string]*time.Timer
+	nextTreatmentTimers map[string]*time.Timer
 )
 
 type Fetcher interface {
@@ -46,6 +45,10 @@ func NewChecker(
 	notifier Notifier,
 	interval time.Duration,
 ) *Checker {
+	treatmentTimers = make(map[string]*time.Timer)
+	nextTreatmentTimers = make(map[string]*time.Timer)
+	treatments = make(map[string]bool)
+
 	return &Checker{
 		fetcher:  fetcher,
 		notifier: notifier,
@@ -59,30 +62,43 @@ func (c *Checker) CheckAndNotify() error {
 		return err
 	}
 
-	if isLongTimeAgo(response.DateString) {
-		if err = c.notifier.Send(noDataText); err != nil {
-			return err
-		}
-	}
-
 	sgv := calculateValue(response.SGV)
 	fmt.Println("sgv:", sgv)
 
-	go c.CheckTreatments(sgv)
+	if isLongTimeAgo(response.DateString) {
+		if c.isInterval() {
+			if err = c.notifier.Send(noDataText); err != nil {
+				return err
+			}
+		}
+		c.prevSGV = sgv
+		return nil
+	}
+
+	if err = c.CheckTreatments(sgv); err != nil {
+		return err
+	}
 
 	message := c.getMessage(sgv)
 
 	if message != "" {
-		if time.Since(c.lastSent) >= c.interval || (c.prevSGV <= highThreshold && sgv > highThreshold) || (c.prevSGV >= lowThreshold && sgv < lowThreshold) {
+		if c.isInterval() || (c.prevSGV <= highThreshold && sgv > highThreshold) || (c.prevSGV >= lowThreshold && sgv < lowThreshold) {
 			if err = c.notifier.Send(message); err != nil {
 				return err
 			}
-			c.lastSent = time.Now()
 		}
 	}
 
 	c.prevSGV = sgv
 	return nil
+}
+
+func (c *Checker) isInterval() bool {
+	if time.Since(c.lastSent) >= c.interval {
+		c.lastSent = time.Now()
+		return true
+	}
+	return false
 }
 
 func isLongTimeAgo(date time.Time) bool {
@@ -100,7 +116,11 @@ func (c *Checker) CheckTreatments(sgv float64) error {
 		return err
 	}
 
-	if !isLongTimeAgo(response.CreatedAt) && response.Insulin == 0 {
+	if isLongTimeAgo(response.CreatedAt) && response.Insulin == 0 {
+		return nil
+	}
+
+	if _, ok := treatments[response.UID]; ok {
 		return nil
 	}
 
@@ -109,27 +129,29 @@ func (c *Checker) CheckTreatments(sgv float64) error {
 	if t, exists := treatmentTimers[response.UID]; exists {
 		t.Stop()
 	}
-	fmt.Println("treatment timer 2 hours is running")
+
+	fmt.Println("Setting treatment timer for 2 hours")
 	treatmentTimers[response.UID] = time.AfterFunc(2*time.Hour, func() {
 		formattedTime := response.CreatedAt.Format("15:04")
 		nextPeriod := response.CreatedAt.Add(2 * time.Hour)
 		formattedNextPeriod := nextPeriod.Format("15:04")
-		// На болюс 0,4 введенный в 15:00 значение сахара через 2 часа (17:00) 10 ммоль/л
-		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, formattedNextPeriod, sgv)
+		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, "2", formattedNextPeriod, sgv)
 		c.notifier.Send(message)
+		fmt.Println("Timer 2 hours executed")
 	})
 
 	if t, exists := nextTreatmentTimers[response.UID]; exists {
 		t.Stop()
 	}
-	fmt.Println("treatment timer 4 hours is running")
+
+	fmt.Println("Setting next treatment timer for 4 hours")
 	nextTreatmentTimers[response.UID] = time.AfterFunc(4*time.Hour, func() {
 		formattedTime := response.CreatedAt.Format("15:04")
 		nextPeriod := response.CreatedAt.Add(4 * time.Hour)
 		formattedNextPeriod := nextPeriod.Format("15:04")
-		// На болюс 0,4 введенный в 15:00 значение сахара через 4 часа (19:00) 10 ммоль/л
-		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, formattedNextPeriod, sgv)
+		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, "4", formattedNextPeriod, sgv)
 		c.notifier.Send(message)
+		fmt.Println("Timer 4 hours executed")
 	})
 
 	return nil
