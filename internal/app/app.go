@@ -17,6 +17,8 @@ import (
 var (
 	interval       = 5 * time.Minute
 	tickerInterval = 30 * time.Second
+	runBotText     = "бот включен"
+	stopBotText    = "бот отключен"
 )
 
 func Run() {
@@ -27,7 +29,7 @@ func Run() {
 	fetcher := adapters.NewHttpFetcher()
 	notifier := adapters.NewNotifier()
 	checker := usecases.NewChecker(fetcher, notifier, interval)
-	notifier.Send("бот включен")
+	notifier.Send(runBotText)
 
 	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
@@ -59,7 +61,7 @@ func Run() {
 	<-sigChan
 	cancel()
 
-	notifier.Send("бот отключен")
+	notifier.Send(stopBotText)
 	wg.Wait()
 	fmt.Println("Application stopped")
 }
