@@ -15,6 +15,9 @@ const (
 	lowText          = "Внимание! Сахар ниже 4.5! Текущее значение %.1f ммоль/л"
 	noDataText       = "Нет новых данных"
 	bolusText        = "На болюс %.1f введенный в %s значение сахара через %s часа (%s) %.1f ммоль/л"
+	utcPeriod        = 3 * time.Hour
+	firstPeriod      = 2 * time.Hour
+	secondPeriod     = 4 * time.Hour
 )
 
 var (
@@ -33,11 +36,12 @@ type Notifier interface {
 }
 
 type Checker struct {
-	fetcher  Fetcher
-	notifier Notifier
-	lastSent time.Time
-	prevSGV  float64
-	interval time.Duration
+	fetcher    Fetcher
+	notifier   Notifier
+	lastSent   time.Time
+	prevSGV    float64
+	currentSGV float64
+	interval   time.Duration
 }
 
 func NewChecker(
@@ -62,8 +66,8 @@ func (c *Checker) CheckAndNotify() error {
 		return err
 	}
 
-	sgv := calculateValue(response.SGV)
-	fmt.Println("sgv:", sgv)
+	c.currentSGV = calculateValue(response.SGV)
+	fmt.Println("sgv:", c.currentSGV)
 
 	if isLongTimeAgo(response.DateString) {
 		if c.isInterval() {
@@ -71,25 +75,25 @@ func (c *Checker) CheckAndNotify() error {
 				return err
 			}
 		}
-		c.prevSGV = sgv
+		c.prevSGV = c.currentSGV
 		return nil
 	}
 
-	if err = c.CheckTreatments(sgv); err != nil {
+	if err = c.CheckTreatments(c.currentSGV); err != nil {
 		return err
 	}
 
-	message := c.getMessage(sgv)
+	message := c.getMessage(c.currentSGV)
 
 	if message != "" {
-		if c.isInterval() || (c.prevSGV <= highThreshold && sgv > highThreshold) || (c.prevSGV >= lowThreshold && sgv < lowThreshold) {
+		if c.isInterval() || (c.prevSGV <= highThreshold && c.currentSGV > highThreshold) || (c.prevSGV >= lowThreshold && c.currentSGV < lowThreshold) {
 			if err = c.notifier.Send(message); err != nil {
 				return err
 			}
 		}
 	}
 
-	c.prevSGV = sgv
+	c.prevSGV = c.currentSGV
 	return nil
 }
 
@@ -116,7 +120,7 @@ func (c *Checker) CheckTreatments(sgv float64) error {
 		return err
 	}
 
-	if isLongTimeAgo(response.CreatedAt) && response.Insulin == 0 {
+	if isLongTimeAgo(response.CreatedAt) || response.Insulin == 0 {
 		return nil
 	}
 
@@ -131,11 +135,11 @@ func (c *Checker) CheckTreatments(sgv float64) error {
 	}
 
 	fmt.Println("Setting treatment timer for 2 hours")
-	treatmentTimers[response.UID] = time.AfterFunc(2*time.Hour, func() {
+	treatmentTimers[response.UID] = time.AfterFunc(firstPeriod, func() {
 		formattedTime := response.CreatedAt.Format("15:04")
-		nextPeriod := response.CreatedAt.Add(2 * time.Hour)
+		nextPeriod := response.CreatedAt.Add(utcPeriod).Add(firstPeriod)
 		formattedNextPeriod := nextPeriod.Format("15:04")
-		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, "2", formattedNextPeriod, sgv)
+		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, "2", formattedNextPeriod, c.currentSGV)
 		c.notifier.Send(message)
 		fmt.Println("Timer 2 hours executed")
 	})
@@ -145,11 +149,11 @@ func (c *Checker) CheckTreatments(sgv float64) error {
 	}
 
 	fmt.Println("Setting next treatment timer for 4 hours")
-	nextTreatmentTimers[response.UID] = time.AfterFunc(4*time.Hour, func() {
+	nextTreatmentTimers[response.UID] = time.AfterFunc(secondPeriod, func() {
 		formattedTime := response.CreatedAt.Format("15:04")
-		nextPeriod := response.CreatedAt.Add(4 * time.Hour)
+		nextPeriod := response.CreatedAt.Add(utcPeriod).Add(secondPeriod)
 		formattedNextPeriod := nextPeriod.Format("15:04")
-		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, "4", formattedNextPeriod, sgv)
+		message := fmt.Sprintf(bolusText, response.Insulin, formattedTime, "4", formattedNextPeriod, c.currentSGV)
 		c.notifier.Send(message)
 		fmt.Println("Timer 4 hours executed")
 	})
