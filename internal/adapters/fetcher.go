@@ -39,8 +39,8 @@ func (hf *HttpFetcher) FetchEntry() (*entities.SGVResponse, error) {
 	return &response[0], nil
 }
 
-func (hf *HttpFetcher) FetchTreatments() (*entities.TreatmentResponse, error) {
-	requestURL := "https://j82719866.nightscout-jino.ru/api/v1/treatments?count=1"
+func (hf *HttpFetcher) FetchTreatments() ([]entities.TreatmentResponse, error) {
+	requestURL := "https://j82719866.nightscout-jino.ru/api/v1/treatments?count=10"
 	res, err := http.Get(requestURL)
 	if err != nil {
 		return nil, err
@@ -61,5 +61,5 @@ func (hf *HttpFetcher) FetchTreatments() (*entities.TreatmentResponse, error) {
 		return nil, err
 	}
 
-	return &response[0], nil
+	return response, nil
 }
