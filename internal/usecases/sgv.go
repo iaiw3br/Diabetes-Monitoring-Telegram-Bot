@@ -13,7 +13,7 @@ const (
 	noDateDifference = 10 * time.Minute
 	highText         = "Внимание! Сахар выше 10! Текущее значение %.1f ммоль/л"
 	lowText          = "Внимание! Сахар ниже 4.5! Текущее значение %.1f ммоль/л"
-	noDataText       = "Нет новых данных"
+	noDataText       = "Потеряна связь с датчиком"
 )
 
 type Fetcher interface {
@@ -56,7 +56,12 @@ func (c *Checker) CheckAndNotify() error {
 		return err
 	}
 
-	c.currentSGV = calculateValue(response.SGV)
+	sgv := calculateValue(response.SGV)
+	if sgv == 0.0 {
+		return nil
+	}
+
+	c.currentSGV = sgv
 	fmt.Println("sgv:", c.currentSGV)
 	localTime := time.Now().UTC()
 

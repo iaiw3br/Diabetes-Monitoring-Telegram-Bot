@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	bolusText         = "На болюс %.1f введенный в %s значение сахара через %d часа (%s) %.1f ммоль/л (%s)"
+	bolusText         = "На болюс %.1f (%.1f ммоль/л) введенный в %s значение сахара через %d часа (%s) %.1f ммоль/л (%s)"
 	firstPeriodValue  = 2
 	secondPeriodValue = 4
 	hhMMLayout        = "15:04"
@@ -42,12 +42,12 @@ func (c *Checker) CheckTreatments() error {
 
 		stopTimerIfExists(treatmentTimers, response.UID)
 		createAndSetTimer(treatmentTimers, response.UID, firstPeriod, func() {
-			sendNotification(c, response, firstPeriodValue, firstPeriod, response.UID)
+			sendNotification(c, response, firstPeriodValue, firstPeriod)
 		})
 
 		stopTimerIfExists(nextTreatmentTimers, response.UID)
-		createAndSetTimer(treatmentTimers, response.UID, secondPeriod, func() {
-			sendNotification(c, response, secondPeriodValue, secondPeriod, response.UID)
+		createAndSetTimer(nextTreatmentTimers, response.UID, secondPeriod, func() {
+			sendNotification(c, response, secondPeriodValue, secondPeriod)
 		})
 	}
 
@@ -64,33 +64,28 @@ func createAndSetTimer(timerMap map[string]*time.Timer, key string, duration tim
 	timerMap[key] = time.AfterFunc(duration, fn)
 }
 
-func sendNotification(c *Checker, response entities.TreatmentResponse, periodValue int, duration time.Duration, key string) {
-	now := time.Now().Format(hhMMLayout)
-	nextPeriod := response.CreatedAt.Add(utcPeriod)
-	formattedNextPeriod := nextPeriod.Format(hhMMLayout)
+func sendNotification(c *Checker, response entities.TreatmentResponse, periodValue int, duration time.Duration) {
+	wasInsulinDate := response.CreatedAt.
+		Add(utcPeriod).
+		Format(hhMMLayout)
+	nextPeriod := response.CreatedAt.
+		Add(utcPeriod).
+		Add(duration).
+		Format(hhMMLayout)
 	oldSGV := treatmentsBySGV[response.UID]
 	difference := formatDifference(oldSGV, c.currentSGV)
 
-	message := fmt.Sprintf(
-		bolusText,
-		response.Insulin,
-		formattedNextPeriod,
-		periodValue,
-		now,
-		c.currentSGV,
-		difference,
-	)
+	message := fmt.Sprintf(bolusText, response.Insulin, oldSGV, wasInsulinDate, periodValue, nextPeriod, c.currentSGV, difference)
 	c.notifier.Send(message)
 
 	if duration == secondPeriod {
-		delete(treatmentsBySGV, key)
+		delete(treatmentsBySGV, response.UID)
 	}
 }
 
 func formatDifference(oldSGV, currentSGV float64) string {
-	difference := fmt.Sprintf("%.1f", oldSGV-currentSGV)
-	if oldSGV-currentSGV >= 0 {
-		difference = fmt.Sprintf("+%.1f", oldSGV-currentSGV)
+	if currentSGV-oldSGV >= 0 {
+		return fmt.Sprintf("+%.1f", currentSGV-oldSGV)
 	}
-	return difference
+	return fmt.Sprintf("%.1f", currentSGV-oldSGV)
 }
