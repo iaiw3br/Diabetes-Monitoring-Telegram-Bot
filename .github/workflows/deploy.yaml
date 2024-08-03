@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.tag }}
+
       - name: Check if tag exists
         run: |
           git fetch --all --tags
@@ -27,14 +28,24 @@ jobs:
             echo "error: Tag '${{ github.event.inputs.tag }}' not found"
             exit 1
           fi
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.22
+
+      - name: List repository contents for debugging
+        run: |
+          echo "Listing repository contents:"
+          ls -la
+          echo "Listing notifier directory contents:"
+          ls -la ./notifier
+
       - name: Build app
         run: |
           go mod download
           go build -o sugar ./notifier
+
       - name: Deploy to VM
         run: |
           sudo apt-get install -y ssh rsync
@@ -44,17 +55,21 @@ jobs:
           rsync -avz -e 'ssh -i deploy_key.pem -o StrictHostKeyChecking=no' --exclude='.git' ./ ${{ env.HOST }}:${{ env.DEPLOY_DIRECTORY }}
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
       - name: Remove old systemd adapters file
         run: |
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "rm -f /etc/systemd/system/sugar.service"
+
       - name: List workspace contents
         run: |
           echo "Listing deploy folder contents:"
           ls -la ${{ github.workspace }}/deploy
+
       - name: Copy systemd adapters file
         run: |
           scp -i deploy_key.pem -o StrictHostKeyChecking=no ${{ github.workspace }}/deploy/sugar.service ${{ env.HOST }}:/tmp/sugar.service
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "mv /tmp/sugar.service /etc/systemd/system/sugar.service"
+
       - name: Start application
         run: |
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "systemctl daemon-reload && systemctl restart sugar.service"
