@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HOST: root@185.10.184.27
-      DEPLOY_DIRECTORY: /root/apps/sugar-notifier
-      ENV_FILE_PATH: /root/apps/sugar-notifier/.env
+      DEPLOY_DIRECTORY: /root/apps/sugar
+      ENV_FILE_PATH: /root/apps/sugar/.env
 
     steps:
       - name: Checkout repository
@@ -34,7 +34,7 @@ jobs:
       - name: Build app
         run: |
           go mod download
-          go build -o notifier ./cmd/notifier
+          go build -o sugar ./cmd/sso
       - name: Deploy to VM
         run: |
           sudo apt-get install -y ssh rsync
@@ -47,18 +47,18 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       - name: Remove old systemd adapters file
         run: |
-          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "rm -f /etc/systemd/system/grpc-auth.service"
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "rm -f /etc/systemd/system/sugar.service"
       - name: List workspace contents
         run: |
           echo "Listing deployment folder contents:"
           ls -la ${{ github.workspace }}/deployment
       - name: Copy systemd adapters file
         run: |
-          scp -i deploy_key.pem -o StrictHostKeyChecking=no ${{ github.workspace }}/deployment/grpc-auth.service ${{ env.HOST }}:/tmp/grpc-auth.service
-          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "mv /tmp/grpc-auth.service /etc/systemd/system/grpc-auth.service"
+          scp -i deploy_key.pem -o StrictHostKeyChecking=no ${{ github.workspace }}/deployment/sugar.service ${{ env.HOST }}:/tmp/sugar.service
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "mv /tmp/sugar.service /etc/systemd/system/sugar.service"
       - name: Run migrations
         run: |
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "${{ env.DEPLOY_DIRECTORY }}/migrator --storage-path=${{ env.DEPLOY_DIRECTORY }}/sso.db --migrations-path=${{ env.DEPLOY_DIRECTORY }}/migrations"
       - name: Start application
         run: |
-          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "systemctl daemon-reload && systemctl restart grpc-auth.service"
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "systemctl daemon-reload && systemctl restart sugar.service"

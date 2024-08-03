@@ -1,0 +1,15 @@
+[Unit]
+Description=gRPC Auth
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/apps/sugar
+ExecStart=/root/apps/sugar/sugar
+Restart=always
+RestartSec=4
+StandardOutput=inherit
+EnvironmentFile=/root/apps/sugar/.env
+
+[Install]
+WantedBy=multi-user.target
