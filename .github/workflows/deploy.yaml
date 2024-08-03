@@ -11,7 +11,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      HOST: root@185.10.184.27
+      HOST: root@87.228.16.72
       DEPLOY_DIRECTORY: /root/apps/sugar
       ENV_FILE_PATH: /root/apps/sugar/.env
 
