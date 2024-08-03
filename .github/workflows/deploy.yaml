@@ -49,11 +49,11 @@ jobs:
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "rm -f /etc/systemd/system/sugar.service"
       - name: List workspace contents
         run: |
-          echo "Listing deployment folder contents:"
-          ls -la ${{ github.workspace }}/deployment
+          echo "Listing deploy folder contents:"
+          ls -la ${{ github.workspace }}/deploy
       - name: Copy systemd adapters file
         run: |
-          scp -i deploy_key.pem -o StrictHostKeyChecking=no ${{ github.workspace }}/deployment/sugar.service ${{ env.HOST }}:/tmp/sugar.service
+          scp -i deploy_key.pem -o StrictHostKeyChecking=no ${{ github.workspace }}/deploy/sugar.service ${{ env.HOST }}:/tmp/sugar.service
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "mv /tmp/sugar.service /etc/systemd/system/sugar.service"
       - name: Start application
         run: |
