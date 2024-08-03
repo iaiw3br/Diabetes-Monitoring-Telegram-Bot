@@ -44,7 +44,7 @@ jobs:
       - name: Build app
         run: |
           go mod download
-          go build -o sugar ./cmd/sso
+          go build -o sugar ./cmd/notifier
 
       - name: Deploy to VM
         run: |
