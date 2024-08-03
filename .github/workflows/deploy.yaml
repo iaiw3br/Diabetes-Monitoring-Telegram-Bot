@@ -38,13 +38,13 @@ jobs:
         run: |
           echo "Listing repository contents:"
           ls -la
-          echo "Listing notifier directory contents:"
-          ls -la ./notifier
+          echo "Listing cmd directory contents:"
+          ls -la ./cmd
 
       - name: Build app
         run: |
           go mod download
-          go build -o sugar ./notifier
+          go build -o sugar ./cmd/sso
 
       - name: Deploy to VM
         run: |
