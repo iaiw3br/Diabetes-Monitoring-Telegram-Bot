@@ -1,15 +1,26 @@
+This project is designed to help monitor and manage critical diabetes-related data for a friend’s daughter who has diabetes. The application integrates with the Nightscout API to fetch real-time glucose data and sends notifications to Telegram in case of critical glucose levels. Additionally, it allows temporary message pauses when insulin injections are administered, ensuring only relevant and timely notifications are sent.
 
-## Правила
+Features
 
-1. Каждые 5 минут скидываю сообщение в чат:
+	•	Critical Value Alerts: Automatically sends notifications to a Telegram chat when glucose levels fall outside safe ranges, ensuring immediate action when needed.
+	•	Pause Notifications: Pauses alerts when insulin injections are administered to avoid unnecessary alerts during treatment periods.
 
-- "Внимание! Сахар выше 10! Текущее значение %.1f ммоль/л"
-- "Внимание! Сахар ниже 4.5! Текущее значение %.1f ммоль/л"
+Technologies Used
 
-2. Нужно сделать.
-- если всё ок, но вдруг стало не ок, то сразу слать алерт, а не ждать 5 минут.
-- ввод болюса.
-было бы круто запилить алерт, который показывает значения сахара через каждые 2 часа и 4 часа после каждого болюса
-типа: На болюс 0,4 введенный в 15:00 значение сахара через 2 часа (17:00) 10 ммоль/л
-И
-На болюс 0,4 введенный в 15:00 значение сахара через 4 часа (19:00) 8 ммоль/л
+	•	Golang: Core programming language used to build the application.
+	•	Telegram API: Used to send real-time alerts and updates directly to a designated Telegram chat.
+	•	Nightscout API (nightscout-jino.ru/api): Integrated to fetch real-time glucose data for monitoring.
+
+How It Works
+
+	1.	Fetch Data: The application periodically checks glucose data from the Nightscout API.
+	2.	Send Alerts: If glucose levels reach critical values, a message is sent to a Telegram chat.
+	3.	Pause Feature: Allows pausing of notifications when insulin injections are being administered to avoid unnecessary interruptions.
+
+How to Use
+
+	1.	Set up your Nightscout instance or use an existing API endpoint.
+	2.	Connect the bot to your Telegram account using the Telegram API.
+	3.	Customize the critical value thresholds and pause settings to match the patient’s treatment plan.
+
+This project provides a simple, automated solution for monitoring glucose levels and ensuring timely action through real-time notifications in Telegram.
